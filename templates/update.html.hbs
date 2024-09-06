@@ -1,0 +1,128 @@
+<html>
+
+<head>
+    <title>
+        ROOSTER!
+    </title>
+
+    <link rel="stylesheet" href="https://meyerweb.com/eric/tools/css/reset/reset200802.css" />
+    <link rel="stylesheet" 
+          href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+          integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" 
+          crossorigin="anonymous" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Slackey&display=swap" rel="stylesheet" />
+
+    <link rel="icon" type="image/x-icon" href="../static/imgs/herodex-logo.svg" />
+
+    <style>
+        h3 strong, a { color: black; font-size: 3rem; }
+        a:hover { text-decoration: none; }
+    
+        h3, a, button { font-family: "Slackey", sans-serif; }
+    </style>
+</head>
+
+<body>
+    <div class="container my-5">
+        <form class="form-control" enctype="multipart/form-data" method="POST" action="/dashboard/{{username}}/roosty/{{id}}/update/processing">
+            <div class="col">
+                <h3>
+                    <a href="/dashboard/{{username}}" id="title"><img src="/static/imgs/herodex-logo.svg" style="width: 10vw;" /></a> Give <strong>{{roosties.0.fantasy_name}}</strong> new credentials!
+                    <a class="btn btn-primary float-right" href="/logout">Logout</a>
+                </h3>
+                <hr>
+
+                <input hidden
+                       name="id"
+                       class="form-control"
+                       value="{{roosties.0.id}}" />
+
+                <img src="/{{roosties.0.spotted_photo}}" class="img-fluid img-thumb" />
+
+                <div class="form-group">
+                    <div class="row">
+                        <div class="col">
+                            <label for="fantasyName">Roosty's name:<span style="color: red">*</span></label>
+                            <input required
+                                   type="text"
+                                   value="{{roosties.0.fantasy_name}}" placeholder="E.g: John Mad dog" 
+                                   name="fantasy_name" id="fantasyName" class="form-control" />
+                        </div>
+                        <div class="col">
+                            <label for="realName">Roosty's <strong>Real</strong> name:</label>
+                            <input type="text" value="{{roosties.0.real_name}}" placeholder="E.g: John Not that Mad" name="real_name" id="realName"
+                                class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="row">
+                        <div class="col">
+                            <label>Roosty's spotted picture:<span style="color: red">*</span></label>
+                            <div class="custom-file">
+                                <label for="spottedPhoto" id="spotted-photo" type="text" class="custom-file-label">
+                                    <i>Upload new thumbnail photo</i>
+                                </label>
+                                <input required type="file" id="spottedPhoto" name="spotted_photo" class="custom-file-input"
+                                    accept="image/png, image/jpeg" />
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label for="strengthLevel">Roosty's <strong>STRENGTH</strong> level:</label>
+                            <input type="range" value="{{roosties.0.strength_level}}" name="strength_level" class="custom-range" min="0" max="10"
+                                id="strengthLevel">
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-block btn-large">🗞️ Update your roosty's database</button>
+                {{#if flash}}
+                    <div class="alert alert-danger">
+                        {{flash}}
+                    </div>
+                {{/if}}
+            </div>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"
+        integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
+        crossorigin="anonymous"></script>
+    
+    <script>
+        function manage(txt) {
+            var bt = document.getElementById('btSubmit');
+            if (txt.value != 'thetacderancode') {
+                bt.disabled = true;
+            } else {
+                bt.disabled = false;
+            }
+        }
+
+        $("#spottedPhoto").change(function () {
+            $("#spotted-photo").text(this.files[0].name);
+        });
+
+        // 	Using ES6 feature
+        // 	let manage = (txt) => {
+        //     	let bt = document.getElementById('btSubmit');
+        //         if (txt.value != '') {
+        //             bt.disabled = false;
+        //         }
+        //         else {
+        //             bt.disabled = true;
+        //         }
+        //     }
+
+    </script>
+</body>
+
+</html>
