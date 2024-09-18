@@ -41,16 +41,11 @@ use chrono::{
 };
 
 use crate::{
-    models::{ Roosty, NewRoosty },
-    schema::*,
-    users::{ 
-        UserClaims, 
-        get_secret_key, 
-        get_cookie_key, 
-        get_cookie_jar,
-        COOKIE_JAR
-    },
-    establish_connection
+    bucket::{
+        remove_object, upload_object, get_object_uri
+    }, establish_connection, models::{ NewRoosty, Roosty }, schema::*, users::{ 
+        get_cookie_jar, get_cookie_key, get_secret_key, UserClaims, COOKIE_JAR
+    }
 };
 
 use serde::{ Serialize, Deserialize };
@@ -97,7 +92,7 @@ pub async fn private_user_profile(
             .expect("Whoops, like this went bananas!");
 
         let mut message: &str = "";
-
+    
         if let Some(ref flash) = flash {
             message = flash.message();
         }
@@ -166,7 +161,35 @@ pub async fn protected_roosty_insert(
             /* If everything is ok, we will move the image and the insert into our datatabase */
             let roosty_img = match form.files.get("spotted_photo") {
                 Some(img) => {
+
+                    // AWS file system
+
                     let file_field = &img[0];
+                    let bucket_name: &str = "rooster-buck";
+
+                    let _dir_path = format!("imgs/{}", username.to_lowercase());
+                    let _user_folder = Path::new(&_dir_path);
+                    let _file_name = &file_field.file_name;
+
+                    let file_path = &file_field.path.clone();
+                    let key = _user_folder.join(_file_name.clone().unwrap().to_owned()).to_str().unwrap().to_owned();
+
+                    let s3_object = upload_object(bucket_name, &key, file_path).await;
+                    
+                    match s3_object {
+                        Ok(output) => {
+                            println!("Uploaded object to S3 with eTag: {:?}", output.e_tag());
+                            // let absolute_path = format!("https://{}.s3.us-west-1.amazonaws.com/{}", bucket_name, &key);
+                            let expiration = 604799;
+                            let presigned_url = get_object_uri(bucket_name, &key, expiration).await;
+                            Ok(presigned_url.unwrap().clone())
+                        },
+                        Err(_) => Err("Failed to upload object to S3")
+                    }
+                   
+                    // Application ROOT file system
+
+                    /* let file_field = &img[0];
                     let _content_type = &file_field.content_type;
                     let _file_name = &file_field.file_name;
                     let _path = &file_field.path;           
@@ -188,7 +211,7 @@ pub async fn protected_roosty_insert(
                     let absolute_path: String = format!("{}/{}", _dir_path, _file_name.clone().unwrap());
                     // let absolute_path = PathBuf::from(absolute_path);
                     // instead...
-                    tokio::fs::copy(_path, &absolute_path).await.unwrap();
+                    tokio::fs::copy(_path, &absolute_path).await.unwrap(); 
 
                     if let Err(err) = tokio::fs::copy(_path, &absolute_path).await {
                         return Flash::error(
@@ -200,9 +223,9 @@ pub async fn protected_roosty_insert(
                         );
                     }
 
-                    Some(absolute_path)
-                }
-                None => None,
+                    Some(absolute_path) */
+                },
+                None => Err("No image found")
             };
 
             let dt: DateTime<Local> = Local::now();
@@ -220,7 +243,7 @@ pub async fn protected_roosty_insert(
                         Some(content) => Some(&content[0].text),
                         None => None,
                     },
-                    spotted_photo: roosty_img.unwrap(),
+                    spotted_photo: roosty_img.unwrap().to_owned(),
                     strength_level: match form.texts.get("strength_level") {
                         Some(level) => level[0].text.parse::<i32>().unwrap(),
                         None => 0,
@@ -323,7 +346,34 @@ pub async fn protected_roosty_process_update(
             /* If everything is ok, we will move the image and the insert into our datatabase */
             let roosty_img = match form.files.get("spotted_photo") {
                 Some(img) => {
+
+                    // AWS file system
+
                     let file_field = &img[0];
+                    let bucket_name: &str = "rooster-buck";
+
+                    let _dir_path = format!("imgs/{}", username.to_lowercase());
+                    let _user_folder = Path::new(&_dir_path);
+                    let _file_name = &file_field.file_name;
+
+                    let file_path = &file_field.path.clone();
+                    let key = _user_folder.join(_file_name.clone().unwrap().to_owned()).to_str().unwrap().to_owned();
+
+                    let s3_object = upload_object(bucket_name, &key, file_path).await;
+                    
+                    match s3_object {
+                        Ok(_output) => {
+                            println!("Uploaded the updated object to S3 with eTag: {:?}", _output.e_tag());
+                            let expiration = 604799;
+                            let presigned_url = get_object_uri(bucket_name, &key, expiration).await;
+                            Ok(presigned_url.unwrap().clone())
+                        },
+                        Err(_) => Err("Failed to upload updated object to S3")
+                    }
+
+                    // Application ROOT file system
+
+                    /*let file_field = &img[0];
                     let _content_type = &file_field.content_type;
                     let _file_name = &file_field.file_name;
                     let _path = &file_field.path;
@@ -344,9 +394,9 @@ pub async fn protected_roosty_process_update(
                         );
                     }
 
-                    Some(absolute_path)
+                    Some(absolute_path) */
                 }
-                None => None,
+                None => Err("No image found")
             };
 
             let roosty_table = roosties::table
@@ -408,23 +458,49 @@ pub async fn protected_roosty_process_update(
 }
 
 #[get("/<username>/roosty/<id>/delete", rank = 1)]
-pub fn protected_roosty_delete(
+pub async fn protected_roosty_delete(
     user: AuthenticatedUser<UserClaims>,
     username: &str,
     id: i32
 ) -> Flash<Redirect> {
     let mut conn = establish_connection();
+    let bucket_name = "rooster_buck";
 
-    diesel::delete(roosties::table)
-        .filter(roosties::user_id.eq(&user.claims.sub.parse::<i32>().unwrap()))
+    let roosty_table = roosties::table
+        .select(roosties::all_columns)
         .filter(roosties::id.eq(&id))
-        .execute(&mut conn)
-        .expect(&format!("Oops, sorry, {}, we can't delete this.", username));
+        .first::<Roosty>(&mut conn)
+        .expect("Whoops, like this went bananas!");
 
-    Flash::success(
-        Redirect::to(format!("/dashboard/{}", &user.claims.username)),
-        "Your roosty was successfully deleted."
-    )
+    /* Remove the object from S3 */
+
+    match remove_object(username, bucket_name, &roosty_table.spotted_photo).await {
+        Ok(()) => {
+            println!("Removed the object from S3");
+
+            /* Delete the roosty from our database */
+
+            diesel::delete(roosties::table)
+                .filter(roosties::user_id.eq(&user.claims.sub.parse::<i32>().unwrap()))
+                .filter(roosties::id.eq(&id))
+                .execute(&mut conn)
+                .expect(&format!("Oops, sorry, {}, we can't delete this.", username));
+
+            Flash::success(
+                Redirect::to(format!("/dashboard/{}", &user.claims.username)),
+                "Your roosty was successfully deleted from s3 and database."
+            )
+        }
+        Err(err_msg) => {
+            Flash::error(
+                Redirect::to(format!("/dashboard/{}", &user.claims.username)),
+                format!(
+                    "Failed to remove the object from S3: {}", 
+                    err_msg
+                )
+            )
+        }    
+    }
 }
 
 #[get("/logout")]

@@ -29,9 +29,8 @@ use crate::users::UserClaims;
 
 /* Declaring a module, just for separating things better */
 pub mod roosties;
-
 pub mod users;
-
+pub mod bucket;
 pub mod models;
 
 /* auto-generated table macros */
