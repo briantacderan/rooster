@@ -95,19 +95,15 @@ pub async fn upload_object(
 
 /// Delete an object from a bucket.
 pub async fn remove_object(
-    username: &str,
     bucket: &str,
-    file_name: &str,
+    key: &str,
 ) -> Result<(), s3::Error> {
     let config = load_from_env().await;
     let s3_client = Client::new(&config);
 
-    let path_string= format!("imgs/{}/{}", username.to_lowercase(), file_name);
-    // let file_path = Path::new(&path_string);
-
     s3_client.delete_object()
         .bucket(bucket)
-        .key(&path_string)
+        .key(key)
         .send().await?;
 
     Ok(())

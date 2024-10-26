@@ -7,6 +7,7 @@ diesel::table! {
         fantasy_name -> Varchar,
         real_name -> Nullable<Varchar>,
         spotted_photo -> Text,
+        file_name -> Text,
         strength_level -> Int4,
         created_at -> Timestamp,
         updated_at -> Timestamp,

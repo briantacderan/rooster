@@ -169,10 +169,10 @@ pub async fn protected_roosty_insert(
 
                     let _dir_path = format!("imgs/{}", username.to_lowercase());
                     let _user_folder = Path::new(&_dir_path);
-                    let _file_name = &file_field.file_name;
+                    let file_name = &file_field.file_name;
 
                     let file_path = &file_field.path.clone();
-                    let key = _user_folder.join(_file_name.clone().unwrap().to_owned()).to_str().unwrap().to_owned();
+                    let key = _user_folder.join(file_name.clone().unwrap().to_owned()).to_str().unwrap().to_owned();
 
                     let s3_object = upload_object(bucket_name, &key, file_path).await;
                     
@@ -243,7 +243,11 @@ pub async fn protected_roosty_insert(
                         Some(content) => Some(&content[0].text),
                         None => None,
                     },
-                    spotted_photo: roosty_img.unwrap().to_owned(),
+                    spotted_photo: &roosty_img.unwrap().to_owned(),
+                    file_name: match form.files.get("spotted_photo") {
+                        Some(img) => &img[0].file_name.as_ref().unwrap(),
+                        None => "No Name",
+                    },
                     strength_level: match form.texts.get("strength_level") {
                         Some(level) => level[0].text.parse::<i32>().unwrap(),
                         None => 0,
@@ -354,10 +358,10 @@ pub async fn protected_roosty_process_update(
 
                     let _dir_path = format!("imgs/{}", username.to_lowercase());
                     let _user_folder = Path::new(&_dir_path);
-                    let _file_name = &file_field.file_name;
+                    let file_name = &file_field.file_name;
 
                     let file_path = &file_field.path.clone();
-                    let key = _user_folder.join(_file_name.clone().unwrap().to_owned()).to_str().unwrap().to_owned();
+                    let key = _user_folder.join(file_name.clone().unwrap().to_owned()).to_str().unwrap().to_owned();
 
                     let s3_object = upload_object(bucket_name, &key, file_path).await;
                     
@@ -422,7 +426,11 @@ pub async fn protected_roosty_process_update(
                         Some(content) => Some(&content[0].text),
                         None => None,
                     },
-                    spotted_photo: roosty_img.unwrap(),
+                    spotted_photo: &roosty_img.unwrap().to_owned(),
+                    file_name: match form.files.get("spotted_photo") {
+                        Some(img) => &img[0].file_name.as_ref().unwrap(),
+                        None => "No Name",
+                    },
                     strength_level: match form.texts.get("strength_level") {
                         Some(level) => level[0].text.parse::<i32>().unwrap(),
                         None => 0,
@@ -457,49 +465,53 @@ pub async fn protected_roosty_process_update(
     }
 }
 
-#[get("/<username>/roosty/<id>/delete", rank = 1)]
+#[post("/<username>/roosty/<id>/delete")]  //, rank = 1)]
 pub async fn protected_roosty_delete(
     user: AuthenticatedUser<UserClaims>,
     username: &str,
     id: i32
 ) -> Flash<Redirect> {
     let mut conn = establish_connection();
-    let bucket_name = "rooster_buck";
 
     let roosty_table = roosties::table
         .select(roosties::all_columns)
         .filter(roosties::id.eq(&id))
-        .first::<Roosty>(&mut conn)
+        .load::<Roosty>(&mut conn)
         .expect("Whoops, like this went bananas!");
 
-    /* Remove the object from S3 */
+    let bucket_name: &str = "rooster-buck";
+    let _dir_path = format!("imgs/{}", username.to_lowercase());
+    let _user_folder = Path::new(&_dir_path);
+    let _file_name = &roosty_table.first().unwrap().file_name;
+    let key = _user_folder.join(_file_name).to_str().unwrap().to_owned();
+    
+    println!("Deleting KEY: {}", &key);
 
-    match remove_object(username, bucket_name, &roosty_table.spotted_photo).await {
+    match remove_object(bucket_name, &key).await {
         Ok(()) => {
             println!("Removed the object from S3");
 
             /* Delete the roosty from our database */
 
-            diesel::delete(roosties::table)
+            diesel::delete(roosties::table
                 .filter(roosties::user_id.eq(&user.claims.sub.parse::<i32>().unwrap()))
                 .filter(roosties::id.eq(&id))
-                .execute(&mut conn)
-                .expect(&format!("Oops, sorry, {}, we can't delete this.", username));
+            )
+            .execute(&mut conn)
+            .expect("Error deleting the roosty");
 
             Flash::success(
-                Redirect::to(format!("/dashboard/{}", &user.claims.username)),
-                "Your roosty was successfully deleted from s3 and database."
+                Redirect::to(format!("/dashboard/{}", username)),
+                "Success! We got rid of your roosty on our database!",
             )
-        }
-        Err(err_msg) => {
-            Flash::error(
-                Redirect::to(format!("/dashboard/{}", &user.claims.username)),
-                format!(
-                    "Failed to remove the object from S3: {}", 
-                    err_msg
-                )
-            )
-        }    
+        },
+        Err(err_msg) => Flash::error(
+            Redirect::to(format!("/dashboard/{}", username)),
+            format!(
+                "Houston, We have problems removing the object from S3: {}",
+                err_msg
+            ),
+        ),
     }
 }
 

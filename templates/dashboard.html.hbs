@@ -53,12 +53,23 @@
             {{#each roosties}}
             <div class="col-6">
                 <div class="card">
-                    <div class="card-header">
+                <div class="card-header">
                         <img class="img-fluid img-thumb" src="{{this.spotted_photo}}" style="width: 100%;" />
                         <h3 class="my-2">
                             {{this.fantasy_name}}
-                            <a class="btn btn-sm btn-secondary float-right ml-2" href="/dashboard/{{../username}}/roosty/{{this.id}}/update">Edit</a>
-                            <a class="btn btn-sm btn-danger float-right" href="/dashboard/{{../username}}/roosty/{{this.id}}/delete">Delete</a>
+                            <!--a class="btn btn-sm btn-danger float-right" href="/dashboard/{{../username}}/roosty/{{this.id}}/delete" method="POST">Delete</a-->
+                            <form class="form-control" enctype="multipart/form-data" method="POST" action="/dashboard/{{../username}}/roosty/{{this.id}}/delete">
+                                <input hidden name="user_id" class="form-control" value="{{this.user_id}}" />
+                                <input hidden name="photo" class="form-control" value="{{this.spotted_photo}}" />
+
+                                <a class="btn btn-sm btn-secondary float-right ml-2" href="/dashboard/{{../username}}/roosty/{{this.id}}/update" style="margin: 0.5rem;">Edit</a>
+                                <button class="btn btn-secondary btn-sm btn-danger float-right" style="margin: 0.5rem;">Delete</button>
+                                {{#if flash}}
+                                <div class="alert alert-danger">
+                                    {{flash}}
+                                </div>
+                                {{/if}}
+                            </form>
                         </h3>
                     </div>
                     <div class="card-body">
